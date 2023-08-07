@@ -1,10 +1,12 @@
-import { Outlet } from "react-router-dom";
-import { useLogin } from "../../hooks";
+import { Navigate, Outlet } from "react-router-dom";
+
+import { useContext } from "react";
+import { UserContext } from "../../providers/ClientContext";
 
 const ProtectedRoutes = () => {
-  const { loading } = useLogin();
+  const { user } = useContext(UserContext);
 
-  return loading ? <div>Carregando...</div> : <Outlet />;
+  return user ? <Outlet /> : <Navigate to={"/"} />;
 };
 
 export default ProtectedRoutes;

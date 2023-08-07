@@ -1,4 +1,6 @@
 import { createContext, useEffect, useState } from "react";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import { api } from "../../services/api";
@@ -10,6 +12,7 @@ import {
   IUserProviderProps,
   LoginResponse,
   TClientRequest,
+  TClientUpdateRequest,
 } from "./@types";
 
 export const UserContext = createContext({} as IUserContext);
@@ -18,47 +21,45 @@ export const UserProvider = ({ children }: IUserProviderProps) => {
   const [user, setUser] = useState<Client | null>(null);
   const [contacts, setContacts] = useState<Contacts[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isOpenModalUser, setIsOpenModalUser] = useState(false);
+
+  const toggleModalEditUser = () => setIsOpenModalUser(!isOpenModalUser);
+
+  const token = localStorage.getItem("schedule:token");
 
   const navigate = useNavigate();
 
   const userRegister = async (formData: TClientRequest) => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const response = await api.post("/client", formData);
+      const response = await api.post<TClientRequest>("/client", formData);
       setLoading(true);
+      toast.success("Cadastro realizado com sucesso!", {
+        autoClose: 1000,
+      });
       navigate("/");
     } catch (error) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const currentError = error as AxiosError<string>;
-      console.log(error);
+      if (currentError.response?.data.message === "Email already exists") {
+        toast.error(currentError.response?.data.message, {
+          autoClose: 1000,
+        });
+      } else {
+        toast.error(
+          "Ocorreu um erro, preencha os campos corretamente e tente novamente!",
+          {
+            autoClose: 1000,
+          }
+        );
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    (async () => {
-      const response = await api.get<Client>("/contact");
-
-      setUser(response.data);
-      setContacts(response.data.contact);
-    })();
-  }, []);
-
-  useEffect(() => {
-    const token = localStorage.getItem("schedule:token");
-
-    if (!token) {
-      setLoading(false);
-      setUser(null);
-      localStorage.removeItem("schedule:token");
-      // navigate("/");
-      setContacts([]);
-      return;
-    }
-
-    (async () => {
-      try {
+    if (token) {
+      (async () => {
         const response = await api.get<Client>("/contact", {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -67,25 +68,55 @@ export const UserProvider = ({ children }: IUserProviderProps) => {
 
         setUser(response.data);
         setContacts(response.data.contact);
+      })();
+    }
+  }, []);
+
+  const userLoad = async () => {
+    if (token) {
+      try {
+        const response = await api.get<Client>("/contact", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        setLoading(true);
+
+        setUser(response.data);
+        setContacts(response.data.contact);
         navigate("dashboard");
       } catch (error) {
+        const currentError = error as AxiosError<string>;
+        console.error(currentError.response?.data);
         setLoading(false);
         setUser(null);
         localStorage.removeItem("schedule:token");
         navigate("/");
         setContacts([]);
+      } finally {
+        setLoading(false);
       }
-    })();
+    }
+  };
 
+  useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      setUser(null);
+      localStorage.removeItem("schedule:token");
+      // navigate("/");
+      setContacts([]);
+      return;
+    }
+    userLoad();
     api.defaults.headers.common.Authorization = `Bearer ${token}`;
     setLoading(false);
   }, []);
 
-  const userLogin = async (data: TLogin) => {
+  const userLogin = async (formData: TLogin) => {
     try {
-      const response = await api.post<LoginResponse>("/login", data);
+      const response = await api.post<LoginResponse>("/login", formData);
       const { token } = response.data;
-      setLoading(true);
 
       api.defaults.headers.common.Authorization = `Bearer ${token}`;
 
@@ -97,12 +128,13 @@ export const UserProvider = ({ children }: IUserProviderProps) => {
         },
       });
 
+      setLoading(true);
       setUser(responseLogin.data);
       setContacts(responseLogin.data.contact);
-      setLoading(false);
       navigate("dashboard");
     } catch (error) {
-      console.error(error);
+      const currentError = error as AxiosError<string>;
+      console.error(currentError.response?.data);
     } finally {
       setLoading(false);
     }
@@ -110,10 +142,54 @@ export const UserProvider = ({ children }: IUserProviderProps) => {
 
   const userLogout = () => {
     setUser(null);
-    localStorage.removeItem("@TOKEN");
-    localStorage.removeItem("@USERID");
+    localStorage.removeItem("schedule:token");
     navigate("/");
     setLoading(false);
+  };
+
+  const editUser = async (formData: TClientUpdateRequest) => {
+    const token = localStorage.getItem("schedule:token");
+
+    if (formData.email?.length === 0 && formData.telephone?.length === 0) {
+      formData.email = undefined;
+      formData.telephone = undefined;
+    } else if (formData.telephone?.length === 0) {
+      formData.telephone = undefined;
+    } else if (formData.email?.length === 0) {
+      formData.email = undefined;
+    }
+
+    try {
+      const newUser = { ...user, ...formData };
+      console.log(newUser);
+      const response = await api.patch("/client", newUser, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      userLoad();
+      toggleModalEditUser();
+    } catch (error) {
+      const currentError = error as AxiosError<string>;
+      console.error(currentError.response?.data);
+      toast.error(currentError.response?.data.message, {
+        autoClose: 1000,
+      });
+    }
+  };
+
+  const deleteUser = async () => {
+    try {
+      const response = api.delete("/client", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      userLoad();
+    } catch (error) {
+      const currentError = error as AxiosError<string>;
+      console.error(currentError.response?.data);
+    }
   };
 
   return (
@@ -128,6 +204,11 @@ export const UserProvider = ({ children }: IUserProviderProps) => {
         userLogout,
         setContacts,
         contacts,
+        editUser,
+        toggleModalEditUser,
+        isOpenModalUser,
+        userLoad,
+        deleteUser,
       }}
     >
       {children}

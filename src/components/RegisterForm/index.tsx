@@ -1,11 +1,19 @@
 import { SubmitHandler, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { TClientRequest, clientSchemaRequest } from "./validator";
 import { useContext } from "react";
 import { UserContext } from "../../providers/ClientContext";
+import {
+  TClientRequest,
+  clientSchemaRequest,
+} from "../../providers/ClientContext/@types";
+import { Input } from "../Input";
 
 const RegisterForm = () => {
-  const { register, handleSubmit } = useForm<TClientRequest>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<TClientRequest>({
     resolver: zodResolver(clientSchemaRequest),
   });
 
@@ -16,19 +24,45 @@ const RegisterForm = () => {
   };
 
   return (
-    <main>
-      <form onSubmit={handleSubmit(submit)}>
-        <label htmlFor="name">Nome</label>
-        <input {...register("name")} type="text" id="name" />
-        <label htmlFor="email">Email</label>
-        <input {...register("email")} type="email" id="email" />
-        <label htmlFor="password">Senha</label>
-        <input {...register("password")} type="password" id="password" />
-        <label htmlFor="telephone">Telefone</label>
-        <input {...register("telephone")} type="text" id="telephone" />
-        <button type="submit">Cadastrar</button>
-      </form>
-    </main>
+    <form onSubmit={handleSubmit(submit)}>
+      <Input
+        placeholder=""
+        error={errors.name}
+        {...register("name")}
+        label="Nome"
+        id="name"
+        type="text"
+        required
+      />
+      <Input
+        placeholder=""
+        error={errors.email}
+        {...register("email")}
+        label="E-mail"
+        id="email"
+        type="email"
+        required
+      />
+      <Input
+        placeholder=""
+        error={errors.password}
+        {...register("password")}
+        label="Senha"
+        id="password"
+        type="password"
+        required
+      />
+      <Input
+        placeholder=""
+        error={errors.telephone}
+        {...register("telephone")}
+        label="Telefone"
+        id="telephone"
+        type="text"
+        required
+      />
+      <button type="submit">Cadastrar</button>
+    </form>
   );
 };
 

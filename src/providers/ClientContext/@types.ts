@@ -19,7 +19,11 @@ export const clientSchemaRequest = clientSchema.omit({
   createdAt: true,
 });
 
+export const updateClientRequestSchema = clientSchemaRequest.partial();
+
 export type TClientRequest = z.infer<typeof clientSchemaRequest>;
+
+export type TClientUpdateRequest = z.infer<typeof updateClientRequestSchema>;
 
 export interface LoginProviderProps {
   children: ReactNode;
@@ -74,4 +78,9 @@ export interface IUserContext {
   userLogout: () => void;
   setContacts: React.Dispatch<React.SetStateAction<Contacts[]>>;
   contacts: Contacts[];
+  editUser: (formData: TClientUpdateRequest) => Promise<void>;
+  toggleModalEditUser: () => void;
+  isOpenModalUser: boolean;
+  userLoad: () => Promise<void>;
+  deleteUser: () => Promise<void>;
 }
